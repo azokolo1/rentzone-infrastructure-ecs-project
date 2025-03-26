@@ -40,7 +40,7 @@ module "security-groups" {
   project_name = local.project_name
   environment  = local.environment
   vpc_id       = module.vpc.vpc_id
-  ssh_ip       = ["109.154.247.49/32"]
+  ssh_ip       = var.ssh_ip
 }
 
 # launch rds instance
