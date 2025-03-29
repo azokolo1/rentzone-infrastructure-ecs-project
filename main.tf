@@ -2,6 +2,19 @@ locals {
   region       = var.region
   project_name = var.project_name
   environment  = var.environment
+
+  # Get target group ARN via data source
+  alb_target_group_arn = data.aws_lb_target_group.app_tg.arn
+}
+
+# Data source to fetch the target group
+data "aws_lb_target_group" "app_tg" {
+  name = "${local.project_name}-${local.environment}-tg"
+
+  # Add a dependency to ensure this runs after the ALB module
+  depends_on = [
+    module.application_load_balancer
+  ]
 }
 
 # create vpc module
@@ -97,6 +110,7 @@ module "ecs_task_execution_role" {
 # create ecs cluster task definition and service
 module "ecs" {
   source                       = "git@github.com:azokolo1/terraform-modules.git//ecs"
+  alb_target_group_arn         = local.alb_target_group_arn
   project_name                 = local.project_name
   environment                  = local.environment
   ecs_task_execution_role_arn  = module.ecs_task_execution_role.ecs_task_execution_role_arn
@@ -108,5 +122,12 @@ module "ecs" {
   private_app_subnet_az1_id    = module.vpc.private_app_subnet_az1_id
   private_app_subnet_az2_id    = module.vpc.private_app_subnet_az2_id
   app_server_security_group_id = module.security-groups.app_server_security_group_id
-  alb_target_group_arn         = module.application_load_balancer.alb_target_group_arn
+}
+
+# create an auto scaling group
+module "ecs_asg" {
+  source       = "git@github.com:azokolo1/terraform-modules.git//asg-ecs"
+  project_name = local.project_name
+  environment  = local.environment
+  ecs_service  = module.ecs.ecs_service
 }
